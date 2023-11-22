@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>three.js webgl - mesh - batch</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="main.css">
+	<style>
+        html, body {
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        #info {
+            background: rgba( 0, 0, 0, 0.3 );
+            color: white;
+            position: absolute;
+            left: 0;
+            padding: 5px;
+            font-family: monospace;
+            white-space: pre;
+        }
+	</style>
+</head>
+<body>
+
+	<script type="importmap">
+		{
+			"imports": {
+				"three": "./three.module.min.js",
+                "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+			}
+		}
+	</script>
+
+	<script type="module" src="./index.js"></script>
+
+    <div id="info"></div>
+
+</body>
+</html>
