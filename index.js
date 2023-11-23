@@ -56,7 +56,7 @@ function randomizeMatrix( matrix ) {
 
     quaternion.setFromEuler( rotation );
 
-    scale.x = scale.y = scale.z = 0.5 + ( Math.random() * 1 );
+    scale.x = scale.y = scale.z = 0.35 + ( Math.random() * 1.25 );
 
     return matrix.compose( position, quaternion, scale );
 
