@@ -12,6 +12,7 @@ let geometries, mesh, material;
 const ids = [];
 const matrix = new THREE.Matrix4();
 const color = new THREE.Color();
+const clock = new THREE.Clock();
 
 //
 
@@ -22,8 +23,14 @@ const scale = new THREE.Vector3();
 
 //
 
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+//
+
 let averageTime = 0;
 let timeSamples = 0;
+
 
 const MAX_GEOMETRY_COUNT = 5000;
 
@@ -115,38 +122,31 @@ function initMesh() {
 
         const c0 = new THREE.Color();
         const c1 = new THREE.Color();            
-        c0.setHSL( rand( 0, 0.05 ), 1, rand( 0.3, 0.4 ) );
-        c1.setHSL( rand( 0.5, 0.55 ), 1, rand( 0.3, 0.4 ) );
+        c0.setHSL( rand( 0, 0.05 ), rand( 1, 1 ), rand( 0.5, 0.7 ) );
+        c1.setHSL( rand( 0.5, 0.55 ), rand( 1, 1 ), rand( 0.5, 0.7 ) );
+
+        const roughness = rand( 0, 0.5 );
+        const metalness = rand( 0, 1 );
+        let emissiveIntensity = 0;
+        if ( rand( 0, 1 ) < 0.2 ) {
+
+            emissiveIntensity = rand( 1, 5 );
+            
+        }
+
         mesh.userData.info.push( {
             rotationMatrix,
             c0,
             c1,
+            emissiveIntensity,
+            roughness,
+            metalness,
             offset: rand( 0, 2 * Math.PI ),
-            speed: rand( 0.5, 3 ),
+            speed: rand( 1, 3 ),
             value: 0,
         } );
 
-        color.lerpColors( c0, c1, Math.random() );
-        material.setValue( i, 'diffuse', ...color );
-        material.setValue( i, 'roughness', rand( 0, 0.5 ) );
-        material.setValue( i, 'metalness', rand( 0, 1 ) );
-
-        if ( rand( 0, 1 ) < 0.1 ) {
-
-            const emissiveIntensity = rand( 1, 10 );
-            material.setValue( i, 'emissive', color.r * emissiveIntensity, color.g * emissiveIntensity, color.b * emissiveIntensity );
-            
-        } else {
-
-            material.setValue( i, 'emissive', 0, 0, 0 );
-
-        }
-
     }
-
-
-
-
 
     scene.add( mesh );
 
@@ -160,19 +160,20 @@ function init() {
     // camera
 
     camera = new THREE.PerspectiveCamera( 70, width / height, 1, 500 );
-    camera.position.set( 50, 30, 30 ).multiplyScalar( 1.5 );
+    camera.position.set( 50, 30, 30 ).multiplyScalar( 1.25 );
 
     // renderer
 
     renderer = new THREE.WebGLRenderer( { antialias: true } );
     renderer.setPixelRatio( window.devicePixelRatio );
     renderer.setSize( width, height );
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     document.body.appendChild( renderer.domElement );
 
     // scene
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color( 0x222222 );
+    scene.background = new THREE.Color( 0x182122 );
     scene.fog = new THREE.Fog( 0x222222, 60, 150 );
 
     const url = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/equirectangular/royal_esplanade_1k.hdr';
@@ -203,6 +204,14 @@ function init() {
     // listeners
 
     window.addEventListener( 'resize', onWindowResize );
+    window.addEventListener( 'mousemove', e => {
+
+	    mouse.set(
+            ( e.clientX / window.innerWidth ) * 2 - 1,
+            - ( e.clientY / window.innerHeight ) * 2 + 1
+        );
+
+    } );
 
 }
 
@@ -226,14 +235,36 @@ function animate() {
 
     animateMeshes();
 
+    updateHover();
+
     controls.update();
 
     render();
 
 }
 
+function updateHover() {
+
+    scene.updateMatrixWorld();
+    camera.updateMatrixWorld();
+    raycaster.setFromCamera( mouse, camera );
+    
+    const hit = raycaster.intersectObject( mesh )[ 0 ];
+    if ( hit ) {
+
+        const batchId = hit.batchId;
+        material.setValue( batchId, 'diffuse', 0, 0, 0 );
+        material.setValue( batchId, 'emissive', 1, 0.2, 0.1 );
+        material.setValue( batchId, 'metalness', 0 );
+        material.setValue( batchId, 'roughness', 1 );
+
+    }
+
+}
+
 function animateMeshes() {
 
+    const delta = clock.getDelta();
     const loopNum = Math.min( MAX_GEOMETRY_COUNT, params.dynamic );
     for ( let i = 0; i < loopNum; i ++ ) {
 
@@ -244,6 +275,9 @@ function animateMeshes() {
             c1,
             speed,
             offset,
+            roughness,
+            metalness,
+            emissiveIntensity,
         } = info;
         const id = ids[ i ];
 
@@ -251,9 +285,12 @@ function animateMeshes() {
         matrix.multiply( rotationMatrix );
         mesh.setMatrixAt( id, matrix );
 
-        info.value += 0.016 * speed * params.animationSpeed;
+        info.value += delta * 2 * speed * params.animationSpeed;
         color.lerpColors( c0, c1, 0.5 + 0.5 * Math.sin( offset + info.value ) );
         material.setValue( i, 'diffuse', ...color );
+        material.setValue( i, 'roughness', roughness );
+        material.setValue( i, 'metalness', metalness );
+        material.setValue( i, 'emissive', color.r * emissiveIntensity, color.g * emissiveIntensity, color.b * emissiveIntensity );
 
     }
 
@@ -263,7 +300,6 @@ function animateMeshes() {
 }
 
 function render() {
-
 
     const start = window.performance.now();
     renderer.render( scene, camera );
