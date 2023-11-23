@@ -35,7 +35,6 @@ let timeSamples = 0;
 const MAX_GEOMETRY_COUNT = 5000;
 
 const params = {
-    dynamic: MAX_GEOMETRY_COUNT,
     animationSpeed: 1,
 };
 
@@ -196,7 +195,6 @@ function init() {
     // gui
 
     gui = new GUI();
-    gui.add( params, 'dynamic', 0, MAX_GEOMETRY_COUNT ).step( 1 );
     gui.add( params, 'animationSpeed', 0, 3 ).step( 0.1 );
 
     infoEl = document.getElementById( 'info' );
@@ -265,8 +263,7 @@ function updateHover() {
 function animateMeshes() {
 
     const delta = clock.getDelta();
-    const loopNum = Math.min( MAX_GEOMETRY_COUNT, params.dynamic );
-    for ( let i = 0; i < loopNum; i ++ ) {
+    for ( let i = 0; i < MAX_GEOMETRY_COUNT; i ++ ) {
 
         const info = mesh.userData.info[ i ];
         const {
