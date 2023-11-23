@@ -61,10 +61,11 @@ export class BatchedPropertiesTexture extends DataTexture {
 
         const { fields, fieldToIndex, image } = this;
         const width = fields.length;
-        const field = fields[ id ];
+        const fieldId = fieldToIndex[ name ];
+        const field = fields[ fieldId ];
         const dim = field.dim;
         const data = image.data;
-        const offset = id * width * 4 + fieldToIndex[ name ] * 4;
+        const offset = id * width * 4 + fieldId * 4;
 
         for ( let i = 0; i < dim; i ++ ) {
 
@@ -72,9 +73,11 @@ export class BatchedPropertiesTexture extends DataTexture {
 
         }
 
+        this.needsUpdate = true;
+
     }
 
-    getGlsl( idField = 'batchId', textureName = 'paramsTex', indent = '' ) {
+    getGlsl( idField = 'vBatchId', textureName = 'propertiesTex', indent = '' ) {
 
         const { fields, image } = this;
         const size = image.width;
@@ -82,14 +85,14 @@ export class BatchedPropertiesTexture extends DataTexture {
 
         let result =
             `${ indent }int size = ${ size };\n` +
-            `${ indent }int j = int( ${ idField } ) * ${ width }\n` +
+            `${ indent }int j = int( ${ idField } ) * ${ width };\n` +
             `${ indent }int x = j % size;\n` +
             `${ indent }int y = j / size;\n`;
 
         for ( let i = 0, l = fields.length; i < l; i ++ ) {
 
             const { name, type, comp } = fields[ i ];
-            result += `${ indent }${ type } ${ name } = ${ type }( texelFetch( ${ textureName }, ivec2( x + ${ i }, y ) ).${ comp } );`;
+            result += `${ indent }${ type } ${ name } = ${ type }( texelFetch( ${ textureName }, ivec2( x + ${ i }, y ), 0 ).${ comp } );\n`;
 
         }
 

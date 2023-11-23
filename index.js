@@ -4,12 +4,14 @@ import * as THREE from 'three';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { BatchedStandardMaterial } from './src/BatchedStandardMaterial.js';
 
 let gui, infoEl;
 let camera, controls, scene, renderer;
 let geometries, mesh, material;
 const ids = [];
 const matrix = new THREE.Matrix4();
+const color = new THREE.Color();
 
 //
 
@@ -20,10 +22,14 @@ const scale = new THREE.Vector3();
 
 //
 
+let averageTime = 0;
+let timeSamples = 0;
+
 const MAX_GEOMETRY_COUNT = 5000;
 
 const params = {
     dynamic: MAX_GEOMETRY_COUNT,
+    animationSpeed: 1,
 };
 
 init();
@@ -33,9 +39,16 @@ animate();
 
 //
 
+function rand( min, max ) {
+
+    const delta = max - min;
+    return min + Math.random() * delta;
+
+}
+
 function randomizeMatrix( matrix ) {
 
-    position.randomDirection().multiplyScalar( 30 * Math.cbrt( Math.random() ) );
+    position.randomDirection().multiplyScalar( 40 * Math.random() ** 1.5 );
 
     rotation.x = Math.random() * 2 * Math.PI;
     rotation.y = Math.random() * 2 * Math.PI;
@@ -61,22 +74,13 @@ function randomizeRotationSpeed( rotation ) {
 function initGeometries() {
 
     geometries = [
-        new THREE.ConeGeometry( 1.0, 2.0 ),
-        new THREE.BoxGeometry( 2.0, 2.0, 2.0 ),
-        new THREE.SphereGeometry( 1.0, 16, 8 ),
+        new THREE.ConeGeometry( 1.0, 2.0 ).toNonIndexed(),
+        new THREE.BoxGeometry( 2.0, 2.0, 2.0 ).toNonIndexed(),
+        new THREE.IcosahedronGeometry( 1, 1 ),//( 1.0, 20, 15 ),
+        new THREE.SphereGeometry( 1.0, 16, 13 ).toNonIndexed(),
     ];
 
-}
-
-function createMaterial() {
-
-    if ( ! material ) {
-
-        material = new THREE.MeshStandardMaterial( { color: 'red', metalness: 1, roughness: 0.2 } );
-
-    }
-
-    return material;
+    geometries[2].computeVertexNormals();
 
 }
 
@@ -88,8 +92,11 @@ function initMesh() {
 
     const euler = new THREE.Euler();
     const matrix = new THREE.Matrix4();
-    mesh = new THREE.BatchedMesh( geometryCount, vertexCount, indexCount, createMaterial() );
-    mesh.userData.rotationSpeeds = [];
+    material = new BatchedStandardMaterial( {}, MAX_GEOMETRY_COUNT );
+    mesh = new THREE.BatchedMesh( geometryCount, vertexCount, indexCount, material );
+    mesh.sortObjects = false;
+    mesh.perObjectFrustumCulled = false;
+    mesh.userData.info = [];
 
     // disable full-object frustum culling since all of the objects can be dynamic.
     mesh.frustumCulled = false;
@@ -103,11 +110,43 @@ function initMesh() {
 
         const rotationMatrix = new THREE.Matrix4();
         rotationMatrix.makeRotationFromEuler( randomizeRotationSpeed( euler ) );
-        mesh.userData.rotationSpeeds.push( rotationMatrix );
 
         ids.push( id );
 
+        const c0 = new THREE.Color();
+        const c1 = new THREE.Color();            
+        c0.setHSL( rand( 0, 0.05 ), 1, rand( 0.3, 0.4 ) );
+        c1.setHSL( rand( 0.5, 0.55 ), 1, rand( 0.3, 0.4 ) );
+        mesh.userData.info.push( {
+            rotationMatrix,
+            c0,
+            c1,
+            offset: rand( 0, 2 * Math.PI ),
+            speed: rand( 0.5, 3 ),
+            value: 0,
+        } );
+
+        color.lerpColors( c0, c1, Math.random() );
+        material.setValue( i, 'diffuse', ...color );
+        material.setValue( i, 'roughness', rand( 0, 0.5 ) );
+        material.setValue( i, 'metalness', rand( 0, 1 ) );
+
+        if ( rand( 0, 1 ) < 0.1 ) {
+
+            const emissiveIntensity = rand( 1, 10 );
+            material.setValue( i, 'emissive', color.r * emissiveIntensity, color.g * emissiveIntensity, color.b * emissiveIntensity );
+            
+        } else {
+
+            material.setValue( i, 'emissive', 0, 0, 0 );
+
+        }
+
     }
+
+
+
+
 
     scene.add( mesh );
 
@@ -121,7 +160,7 @@ function init() {
     // camera
 
     camera = new THREE.PerspectiveCamera( 70, width / height, 1, 500 );
-    camera.position.set( 50, 30, 30 );
+    camera.position.set( 50, 30, 30 ).multiplyScalar( 1.5 );
 
     // renderer
 
@@ -133,7 +172,8 @@ function init() {
     // scene
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color( 0xffffff );
+    scene.background = new THREE.Color( 0x222222 );
+    scene.fog = new THREE.Fog( 0x222222, 60, 150 );
 
     const url = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/equirectangular/royal_esplanade_1k.hdr';
     new RGBELoader()
@@ -149,11 +189,14 @@ function init() {
     // controls
 
     controls = new OrbitControls( camera, renderer.domElement );
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.2;
 
     // gui
 
     gui = new GUI();
     gui.add( params, 'dynamic', 0, MAX_GEOMETRY_COUNT ).step( 1 );
+    gui.add( params, 'animationSpeed', 0, 3 ).step( 0.1 );
 
     infoEl = document.getElementById( 'info' );
 
@@ -194,21 +237,45 @@ function animateMeshes() {
     const loopNum = Math.min( MAX_GEOMETRY_COUNT, params.dynamic );
     for ( let i = 0; i < loopNum; i ++ ) {
 
-        const rotationMatrix = mesh.userData.rotationSpeeds[ i ];
+        const info = mesh.userData.info[ i ];
+        const {
+            rotationMatrix,
+            c0,
+            c1,
+            speed,
+            offset,
+        } = info;
         const id = ids[ i ];
 
         mesh.getMatrixAt( id, matrix );
         matrix.multiply( rotationMatrix );
         mesh.setMatrixAt( id, matrix );
 
+        info.value += 0.016 * speed * params.animationSpeed;
+        color.lerpColors( c0, c1, 0.5 + 0.5 * Math.sin( offset + info.value ) );
+        material.setValue( i, 'diffuse', ...color );
+
     }
+
+    scene.fog.near = Math.min( camera.position.length() - 30, 80 );
+    scene.fog.far = scene.fog.near + 60;
 
 }
 
 function render() {
 
-    infoEl.innerHTML = `draw calls : ${ renderer.info.render.calls }`;
 
+    const start = window.performance.now();
     renderer.render( scene, camera );
+    const delta = window.performance.now() - start;
+    averageTime += ( delta - averageTime ) / ( timeSamples + 1 );
+    if ( timeSamples < 60 ) {
+        
+        timeSamples ++;
+
+    }
+
+    infoEl.innerHTML = `draw calls  : ${ renderer.info.render.calls }\n`;
+    infoEl.innerHTML += `render time : ${ averageTime.toFixed( 2 ) }ms`;
 
 }
