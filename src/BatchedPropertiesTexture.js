@@ -61,6 +61,12 @@ export class BatchedPropertiesTexture extends DataTexture {
 
         const { fields, fieldToIndex, image } = this;
         const width = fields.length;
+        if ( ! ( name in fieldToIndex ) ) {
+
+            return;
+
+        }
+
         const fieldId = fieldToIndex[ name ];
         const field = fields[ fieldId ];
         const dim = field.dim;

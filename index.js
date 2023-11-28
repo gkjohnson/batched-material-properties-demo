@@ -28,6 +28,9 @@ const mouse = new THREE.Vector2();
 
 //
 
+let frameTime = 0;
+let frameSamples = 0;
+let lastFrameStart = - 1;
 let averageTime = 0;
 let timeSamples = 0;
 
@@ -36,6 +39,10 @@ const MAX_GEOMETRY_COUNT = 5000;
 
 const params = {
     animationSpeed: 1,
+    metalness: true,
+    roughness: true,
+    emissive: true,
+    color: true,
 };
 
 init();
@@ -98,11 +105,12 @@ function initMesh() {
 
     const euler = new THREE.Euler();
     const matrix = new THREE.Matrix4();
-    material = new BatchedStandardMaterial( {}, MAX_GEOMETRY_COUNT );
-    mesh = new THREE.BatchedMesh( geometryCount, vertexCount, indexCount, material );
+    mesh = new THREE.BatchedMesh( geometryCount, vertexCount, indexCount, null );
     mesh.sortObjects = false;
     mesh.perObjectFrustumCulled = false;
     mesh.userData.info = [];
+
+    updateMaterial();
 
     // disable full-object frustum culling since all of the objects can be dynamic.
     mesh.frustumCulled = false;
@@ -151,6 +159,21 @@ function initMesh() {
 
 }
 
+function updateMaterial() {
+
+    const props = [];
+    if ( params.metalness ) props.push( 'metalness' );
+    if ( params.color ) props.push( 'diffuse' );
+    if ( params.roughness ) props.push( 'roughness' );
+    if ( params.emissive ) props.push( 'emissive' );
+
+    if ( material ) material.dispose();
+
+    material = new BatchedStandardMaterial( {}, MAX_GEOMETRY_COUNT, props );
+    mesh.material = material;
+
+}
+
 function init() {
 
     const width = window.innerWidth;
@@ -196,6 +219,10 @@ function init() {
 
     gui = new GUI();
     gui.add( params, 'animationSpeed', 0, 3 ).step( 0.1 );
+    gui.add( params, 'color' ).onChange( updateMaterial );
+    gui.add( params, 'metalness' ).onChange( updateMaterial );
+    gui.add( params, 'roughness' ).onChange( updateMaterial );
+    gui.add( params, 'emissive' ).onChange( updateMaterial );
 
     infoEl = document.getElementById( 'info' );
 
@@ -298,6 +325,25 @@ function animateMeshes() {
 
 function render() {
 
+    let frameDelta;
+    if ( lastFrameStart === - 1 ) {
+
+        lastFrameStart = window.performance.now();
+
+    } else {
+
+        frameDelta = window.performance.now() - lastFrameStart;
+        frameTime += ( frameDelta - frameTime ) / ( frameSamples + 1 );
+        if ( frameSamples < 60 ) {
+        
+            frameSamples ++
+
+        }
+
+        lastFrameStart = window.performance.now();
+
+    }
+
     const start = window.performance.now();
     renderer.render( scene, camera );
     const delta = window.performance.now() - start;
@@ -309,6 +355,7 @@ function render() {
     }
 
     infoEl.innerHTML = `draw calls  : ${ renderer.info.render.calls }\n`;
-    infoEl.innerHTML += `render time : ${ averageTime.toFixed( 2 ) }ms`;
+    infoEl.innerHTML += `render time : ${ averageTime.toFixed( 2 ) }ms\n`;
+    infoEl.innerHTML += `frame time  : ${ frameTime.toFixed( 2 ) }ms`;
 
 }

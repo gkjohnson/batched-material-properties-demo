@@ -10,14 +10,35 @@ const properties = {
 
 export class BatchedStandardMaterial extends MeshStandardMaterial {
 
-    constructor( params, geometryCount ) {
+    constructor( params, geometryCount, propertiesList = null ) {
 
         super( params );
-        
-        const propertiesTex = new BatchedPropertiesTexture( properties, geometryCount );
+
+        let props = { ...properties };
+        if ( propertiesList ) {
+
+            for ( const key in props ) {
+
+                if ( ! propertiesList.includes( key ) ) {
+
+                    delete props[ key ];
+
+                }
+
+            }
+
+        }
+
+        const propertiesTex = new BatchedPropertiesTexture( props, geometryCount );
         this.propertiesTex = propertiesTex;
 
         this.onBeforeCompile = ( parameters, renderer ) => {
+
+            if ( Object.keys( props ).length === 0 ) {
+
+                return;
+
+            }
 
             parameters.uniforms.propertiesTex = { value: propertiesTex };
 
@@ -55,6 +76,13 @@ export class BatchedStandardMaterial extends MeshStandardMaterial {
 
         this.propertiesTex.setValue( ...args );
         
+    }
+
+    dispose() {
+
+        super.dispose();
+        this.propertiesTex.dispose();
+
     }
 
 }
