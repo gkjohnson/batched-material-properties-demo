@@ -47,13 +47,12 @@ export class BatchedStandardMaterial extends MeshStandardMaterial {
                 .replace(
                     'void main() {',
                     `
-                        flat varying float vBatchId;
+                        varying float vBatchId;
                         void main() {
 
                             vBatchId = batchId;
                     `
                 );
-
 
             parameters.fragmentShader = parameters
                 .fragmentShader
@@ -61,7 +60,7 @@ export class BatchedStandardMaterial extends MeshStandardMaterial {
                     'void main() {',
                     `
                         uniform highp sampler2D propertiesTex;
-                        flat varying float vBatchId;
+                        varying float vBatchId;
                         void main() {
   
                             ${ propertiesTex.getGlsl() }
