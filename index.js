@@ -43,6 +43,7 @@ const params = {
     roughness: true,
     emissive: true,
     color: true,
+    checkShaderErrors: false,
 };
 
 init();
@@ -172,6 +173,8 @@ function updateMaterial() {
     material = new BatchedStandardMaterial( {}, MAX_GEOMETRY_COUNT, props );
     mesh.material = material;
 
+    frameSamples = 0;
+
 }
 
 function init() {
@@ -223,6 +226,7 @@ function init() {
     gui.add( params, 'metalness' ).onChange( updateMaterial );
     gui.add( params, 'roughness' ).onChange( updateMaterial );
     gui.add( params, 'emissive' ).onChange( updateMaterial );
+    gui.add( params, 'checkShaderErrors' );
 
     infoEl = document.getElementById( 'info' );
 
@@ -324,6 +328,8 @@ function animateMeshes() {
 }
 
 function render() {
+
+    renderer.info.checkShaderErrors = params.checkShaderErrors;
 
     let frameDelta;
     if ( lastFrameStart === - 1 ) {
