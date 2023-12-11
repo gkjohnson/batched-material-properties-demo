@@ -50,7 +50,8 @@ export class BatchedStandardMaterial extends MeshStandardMaterial {
                         varying float vBatchId;
                         void main() {
 
-                            vBatchId = batchId;
+                            // add 0.5 to the value to avoid floating error that may cause flickering
+                            vBatchId = batchId + 0.5;
                     `
                 );
 
