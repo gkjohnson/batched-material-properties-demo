@@ -201,7 +201,7 @@ function init() {
     scene.background = new THREE.Color( 0x182122 );
     scene.fog = new THREE.Fog( 0x222222, 60, 150 );
 
-    const url = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/equirectangular/royal_esplanade_1k.hdr';
+    const url = 'https://raw.githubusercontent.com/mrdoob/three.js/r150/examples/textures/equirectangular/royal_esplanade_1k.hdr';
     new RGBELoader()
         .load( url, texture => {
 
