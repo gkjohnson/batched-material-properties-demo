@@ -10,7 +10,7 @@ const properties = {
 
 export class BatchedStandardMaterial extends MeshStandardMaterial {
 
-    constructor( params, geometryCount, propertiesList = null ) {
+    constructor( params, instanceCount, propertiesList = null ) {
 
         super( params );
 
@@ -29,7 +29,7 @@ export class BatchedStandardMaterial extends MeshStandardMaterial {
 
         }
 
-        const propertiesTex = new BatchedPropertiesTexture( props, geometryCount );
+        const propertiesTex = new BatchedPropertiesTexture( props, instanceCount );
         this.propertiesTex = propertiesTex;
 
         this.onBeforeCompile = ( parameters, renderer ) => {
@@ -51,7 +51,7 @@ export class BatchedStandardMaterial extends MeshStandardMaterial {
                         void main() {
 
                             // add 0.5 to the value to avoid floating error that may cause flickering
-                            vBatchId = batchId + 0.5;
+                            vBatchId = getIndirectIndex(gl_DrawID) + 0.5;
                     `
                 );
 
@@ -63,7 +63,7 @@ export class BatchedStandardMaterial extends MeshStandardMaterial {
                         uniform highp sampler2D propertiesTex;
                         varying float vBatchId;
                         void main() {
-  
+
                             ${ propertiesTex.getGlsl() }
                     `
                 );

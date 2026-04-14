@@ -9,7 +9,8 @@ import { BatchedStandardMaterial } from './src/BatchedStandardMaterial.js';
 let gui, infoEl;
 let camera, controls, scene, renderer;
 let geometries, mesh, material;
-const ids = [];
+const geometryIds = [];
+const instanceIds = [];
 const matrix = new THREE.Matrix4();
 const color = new THREE.Color();
 const clock = new THREE.Clock();
@@ -35,7 +36,8 @@ let averageTime = 0;
 let timeSamples = 0;
 
 
-const MAX_GEOMETRY_COUNT = 5000;
+const MAX_GEOMETRY_COUNT = 100;
+const MAX_INSTANCE_COUNT = 5000;
 
 const params = {
     animationSpeed: 1,
@@ -100,13 +102,14 @@ function initGeometries() {
 
 function initMesh() {
 
+    const instanceCount = MAX_INSTANCE_COUNT;
     const geometryCount = MAX_GEOMETRY_COUNT;
     const vertexCount = geometryCount * 512;
     const indexCount = geometryCount * 1024;
 
     const euler = new THREE.Euler();
     const matrix = new THREE.Matrix4();
-    mesh = new THREE.BatchedMesh( geometryCount, vertexCount, indexCount, null );
+    mesh = new THREE.BatchedMesh( instanceCount, vertexCount, indexCount, null );
     mesh.sortObjects = false;
     mesh.perObjectFrustumCulled = false;
     mesh.userData.info = [];
@@ -116,20 +119,27 @@ function initMesh() {
     // disable full-object frustum culling since all of the objects can be dynamic.
     mesh.frustumCulled = false;
 
-    ids.length = 0;
+    geometryIds.length = 0;
+    instanceIds.length = 0;
 
-    for ( let i = 0; i < geometryCount; i ++ ) {
+    for (let i = 0; i < geometryCount; i++) {
+        const geometryId = mesh.addGeometry( geometries[ i % geometries.length ] );
+        geometryIds.push(geometryId);
+    }
 
-        const id = mesh.addGeometry( geometries[ i % geometries.length ] );
-        mesh.setMatrixAt( id, randomizeMatrix( matrix ) );
+    for (let i = 0; i < instanceCount; i++) {
+        
+        const instanceId = mesh.addInstance(geometryIds[i % geometryIds.length ]);
+
+        mesh.setMatrixAt( instanceId, randomizeMatrix( matrix ) );
 
         const rotationMatrix = new THREE.Matrix4();
         rotationMatrix.makeRotationFromEuler( randomizeRotationSpeed( euler ) );
 
-        ids.push( id );
+        instanceIds.push(instanceId);
 
         const c0 = new THREE.Color();
-        const c1 = new THREE.Color();            
+        const c1 = new THREE.Color();
         c0.setHSL( rand( 0, 0.05 ), rand( 1, 1 ), rand( 0.5, 0.7 ) );
         c1.setHSL( rand( 0.5, 0.55 ), rand( 1, 1 ), rand( 0.5, 0.7 ) );
 
@@ -170,7 +180,7 @@ function updateMaterial() {
 
     if ( material ) material.dispose();
 
-    material = new BatchedStandardMaterial( {}, MAX_GEOMETRY_COUNT, props );
+    material = new BatchedStandardMaterial( {}, MAX_INSTANCE_COUNT, props );
     mesh.material = material;
 
     frameSamples = 0;
@@ -294,7 +304,7 @@ function updateHover() {
 function animateMeshes() {
 
     const delta = clock.getDelta();
-    for ( let i = 0; i < MAX_GEOMETRY_COUNT; i ++ ) {
+    for ( let i = 0; i < MAX_INSTANCE_COUNT; i ++ ) {
 
         const info = mesh.userData.info[ i ];
         const {
@@ -307,7 +317,7 @@ function animateMeshes() {
             metalness,
             emissiveIntensity,
         } = info;
-        const id = ids[ i ];
+        const id = instanceIds[ i ];
 
         mesh.getMatrixAt( id, matrix );
         matrix.multiply( rotationMatrix );
